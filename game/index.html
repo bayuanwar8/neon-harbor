@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NEON HARBOR — an open-world crime game</title>
+<style>
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #05060f; font-family: "Segoe UI", Arial, sans-serif; }
+  #app { position: fixed; inset: 0; }
+  canvas.webgl { display: block; width: 100%; height: 100%; }
+  .hidden { display: none !important; }
+
+  /* ---------- HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; color: #eaf6ff; z-index: 5; }
+  #hud .panel { background: rgba(5, 10, 26, 0.62); border: 1px solid rgba(0, 229, 255, 0.35); border-radius: 10px; padding: 8px 12px; backdrop-filter: blur(2px); }
+  #stats { position: absolute; top: 14px; left: 14px; min-width: 210px; }
+  #stats .cash { font-size: 26px; font-weight: 800; color: #7dff9b; letter-spacing: 1px; text-shadow: 0 0 12px rgba(125, 255, 155, 0.55); }
+  #stats .row { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 15px; }
+  #stars { font-size: 20px; letter-spacing: 2px; color: #ffd23e; text-shadow: 0 0 10px rgba(255, 210, 62, 0.7); }
+  #stars .off { color: rgba(255, 255, 255, 0.22); text-shadow: none; }
+  #healthbar { width: 130px; height: 9px; background: rgba(255,255,255,0.15); border-radius: 5px; overflow: hidden; }
+  #healthfill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff3b6b, #ff7a3d); }
+  #rep { font-size: 13px; color: #9fd8ff; }
+
+  #minimap-wrap { position: absolute; top: 14px; right: 14px; text-align: right; }
+  #minimap { width: 190px; height: 190px; border-radius: 10px; border: 1px solid rgba(0, 229, 255, 0.4); background: rgba(4, 8, 20, 0.8); }
+  #clock { margin-top: 6px; font-size: 13px; color: #bfe9ff; }
+
+  #objective { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); max-width: 640px; text-align: center; }
+  #objective .title { font-size: 15px; font-weight: 700; color: #ffe9a8; text-shadow: 0 0 10px rgba(255, 210, 62, 0.5); }
+  #objective .text { font-size: 14px; color: #d9f2ff; margin-top: 2px; }
+  #prompt { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); font-size: 16px; font-weight: 700; color: #ffffff; background: rgba(0, 180, 255, 0.25); border: 1px solid rgba(0, 229, 255, 0.6); border-radius: 8px; padding: 6px 14px; }
+  #speedo { position: absolute; right: 16px; bottom: 16px; font-size: 30px; font-weight: 800; color: #00e5ff; text-shadow: 0 0 14px rgba(0, 229, 255, 0.7); }
+  #speedo small { font-size: 13px; color: #bfe9ff; }
+  #controls { position: absolute; left: 14px; bottom: 14px; font-size: 12px; line-height: 1.6; color: #a8c8e0; }
+  #toast { position: absolute; left: 50%; top: 84px; transform: translateX(-50%); font-size: 19px; font-weight: 800; color: #7dff9b; text-shadow: 0 0 14px rgba(125, 255, 155, 0.7); opacity: 0; transition: opacity 0.3s; }
+  #damage { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(255, 0, 60, 0.45) 100%); opacity: 0; z-index: 6; }
+
+  /* ---------- Menus ---------- */
+  .menu { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 10; background: radial-gradient(ellipse at 50% 30%, rgba(20, 20, 60, 0.52), rgba(3, 4, 12, 0.72)); }
+  .menu .card { text-align: center; max-width: 620px; padding: 28px 34px; }
+  .menu h1 { margin: 0; font-size: 64px; letter-spacing: 6px; font-weight: 900; color: #00e5ff; text-shadow: 0 0 18px rgba(0, 229, 255, 0.9), 0 0 60px rgba(255, 0, 128, 0.6); }
+  .menu h1 .pink { color: #ff2d78; text-shadow: 0 0 18px rgba(255, 45, 120, 0.9), 0 0 60px rgba(0, 229, 255, 0.5); }
+  .menu h2 { margin: 6px 0 0; font-size: 17px; font-weight: 400; color: #ffd23e; letter-spacing: 3px; text-transform: uppercase; }
+  .menu p.story { color: #cfe6ff; font-size: 15px; line-height: 1.65; margin: 18px 0 6px; }
+  .menu .controls { color: #8fb4d6; font-size: 13px; line-height: 1.8; margin: 14px 0; }
+  .menu .controls b { color: #eaf6ff; }
+  .btn { pointer-events: auto; cursor: pointer; display: inline-block; margin: 8px 6px 0; padding: 13px 34px; font-size: 18px; font-weight: 800; letter-spacing: 2px; color: #04121f; background: linear-gradient(90deg, #00e5ff, #7dff9b); border: none; border-radius: 10px; box-shadow: 0 0 22px rgba(0, 229, 255, 0.55); }
+  .btn:hover { filter: brightness(1.12); }
+  .btn.ghost { background: transparent; color: #9fd8ff; border: 1px solid rgba(0, 229, 255, 0.5); box-shadow: none; }
+  .menu .fine { margin-top: 16px; font-size: 11px; color: #5f7d9c; }
+  #busted-title { color: #ff3b6b; text-shadow: 0 0 18px rgba(255, 59, 107, 0.9); }
+  #end-title { color: #7dff9b; text-shadow: 0 0 18px rgba(125, 255, 155, 0.9); }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js" } }
+</script>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="hud" class="hidden">
+  <div id="stats" class="panel">
+    <div class="cash" id="cash">$0</div>
+    <div class="row"><span>WANTED</span><span id="stars"></span></div>
+    <div class="row"><span>HP</span><div id="healthbar"><div id="healthfill"></div></div></div>
+    <div class="row" id="rep">REP: Street</div>
+  </div>
+  <div id="minimap-wrap">
+    <canvas id="minimap" width="380" height="380"></canvas>
+    <div id="clock" class="panel">NEON HARBOR &middot; 21:40</div>
+  </div>
+  <div id="objective"><div class="title" id="obj-title"></div><div class="text" id="obj-text"></div></div>
+  <div id="prompt" class="hidden"></div>
+  <div id="speedo" class="hidden"><span id="speed">0</span> <small>km/h</small></div>
+  <div id="controls" class="panel">WASD move &middot; SHIFT run &middot; E enter / steal car &middot; F punch<br>SPACE brake &middot; R reset car &middot; M mute &middot; P pause &middot; drag mouse to look</div>
+  <div id="toast"></div>
+</div>
+<div id="damage"></div>
+
+<div id="menu-title" class="menu">
+  <div class="card">
+    <h1>NEON <span class="pink">HARBOR</span></h1>
+    <h2>An open-world crime story</h2>
+    <p class="story">Kai owes the Harbor Syndicate $2,000, and the docks never forget a debt.
+    Run jobs across a neon-lit harbor city — on foot and behind the wheel — steal what you need,
+    dodge the harbor police as your wanted level climbs, and buy your freedom one delivery at a time.</p>
+    <div class="controls">
+      <b>WASD</b> move / drive &nbsp; <b>SHIFT</b> run &nbsp; <b>E</b> enter or steal a car &nbsp; <b>F</b> punch<br>
+      <b>SPACE</b> brake &nbsp; <b>R</b> flip car back &nbsp; <b>M</b> mute &nbsp; <b>P</b> pause
+    </div>
+    <button class="btn" id="btn-start">START ENGINE</button>
+    <button class="btn ghost hidden" id="btn-continue">CONTINUE</button>
+    <div class="fine">A fully original game. No assets, names or music from any commercial game. Best on desktop Chrome.</div>
+  </div>
+</div>
+
+<div id="menu-busted" class="menu hidden">
+  <div class="card">
+    <h1 id="busted-title">BUSTED</h1>
+    <h2>The harbor police caught you</h2>
+    <p class="story" id="busted-text">They took $200 in fines. The debt is still yours, Kai.</p>
+    <button class="btn" id="btn-retry">BACK ON THE STREETS</button>
+  </div>
+</div>
+
+<div id="menu-end" class="menu hidden">
+  <div class="card">
+    <h1 id="end-title">DEBT PAID</h1>
+    <h2>Neon Harbor is yours now</h2>
+    <p class="story">Every job done, every dollar settled. The syndicate shakes your hand and walks away.
+    The city is open — keep driving, keep earning, keep the neon burning.</p>
+    <button class="btn" id="btn-freeroam">FREE ROAM</button>
+  </div>
+</div>
+
+<div id="menu-pause" class="menu hidden">
+  <div class="card">
+    <h1 style="font-size:44px">PAUSED</h1>
+    <p class="story">The harbor waits for no one. Except right now.</p>
+    <button class="btn" id="btn-resume">RESUME</button>
+    <button class="btn ghost" id="btn-save">SAVE GAME</button>
+    <button class="btn ghost" id="btn-quit">QUIT TO TITLE</button>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

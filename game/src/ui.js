@@ -1,11 +1,13 @@
 // NEON HARBOR — HUD, minimap, menus and toasts. All DOM; the 3D scene never
 // draws UI. The minimap is a 2D canvas top-down view of the city.
+// v2: the HUD shows mission progress (JOB x/8), a countdown for timed jobs,
+// and the end screen reports the final stats.
 import { CFG, repTier } from './config.js';
 
 export class UI {
   constructor() {
     this.el = {};
-    const ids = ['hud', 'cash', 'stars', 'healthfill', 'rep', 'minimap', 'clock', 'obj-title', 'obj-text', 'prompt', 'speedo', 'speed', 'toast', 'damage', 'menu-title', 'menu-busted', 'menu-end', 'menu-pause', 'busted-text', 'btn-start', 'btn-continue', 'btn-retry', 'btn-freeroam', 'btn-resume', 'btn-save', 'btn-quit'];
+    const ids = ['hud', 'cash', 'stars', 'healthfill', 'rep', 'jobcount', 'minimap', 'clock', 'obj-title', 'obj-text', 'obj-timer', 'prompt', 'speedo', 'speed', 'toast', 'damage', 'menu-title', 'menu-busted', 'menu-end', 'menu-pause', 'busted-text', 'end-stats', 'btn-start', 'btn-continue', 'btn-retry', 'btn-freeroam', 'btn-resume', 'btn-save', 'btn-quit'];
     for (const id of ids) this.el[id] = document.getElementById(id);
     this.minimapCtx = this.el.minimap.getContext('2d');
     this.toastTimer = null;
@@ -22,6 +24,8 @@ export class UI {
   }
 
   setBustedText(text) { this.el['busted-text'].textContent = text; }
+
+  setEndStats(text) { this.el['end-stats'].textContent = text; }
 
   toast(text, ms) {
     const t = this.el.toast;
@@ -56,9 +60,20 @@ export class UI {
     this.el.stars.innerHTML = stars;
     this.el.healthfill.style.width = Math.max(0, Math.min(100, state.health)) + '%';
     this.el.rep.textContent = 'REP: ' + repTier(state.lifetimeEarned) + '  ·  DEBT $' + Math.max(0, CFG.DEBT - state.lifetimeEarned).toLocaleString('en-US');
+    // Mission progress: JOB 3/8, or FREE ROAM once the story is done.
+    this.el.jobcount.textContent = state.missions.progressText();
     const obj = state.missions.objectiveText();
     this.el['obj-title'].textContent = obj.title;
     this.el['obj-text'].textContent = obj.text;
+    // Timed-job countdown, only while the clock is running.
+    const m = state.missions.current();
+    if (m && m.kind === 'timed' && state.missions.timerRunning) {
+      const s = Math.max(0, Math.ceil(state.missions.timeLeft));
+      this.el['obj-timer'].textContent = `⏱ ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+      this.el['obj-timer'].classList.remove('hidden');
+    } else {
+      this.el['obj-timer'].classList.add('hidden');
+    }
     // In-game clock advances with play time (1 game hour per 4 real minutes).
     const mins = (this.clockBase + elapsedMin * 15) % (24 * 60);
     const hh = String(Math.floor(mins / 60)).padStart(2, '0');
@@ -73,7 +88,7 @@ export class UI {
     }
   }
 
-  // Top-down minimap: roads, water, buildings, player, cars, police, objective.
+  // Top-down minimap: roads, water, buildings, player, cars, police, heli, objective.
   // Drawn large and bright so it still reads at the 190px display size.
   drawMinimap(state, city) {
     const ctx = this.minimapCtx;
@@ -133,6 +148,16 @@ export class UI {
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.arc(toX(c.pos.x), toZ(c.pos.z), 6, 0, Math.PI * 2); ctx.stroke();
+    }
+    // Police helicopter: a yellow-ringed dot so it reads apart from cars.
+    if (state.police.heli) {
+      const hx = toX(state.police.heliPos.x);
+      const hy = toZ(state.police.heliPos.z);
+      ctx.fillStyle = '#ffd23e';
+      ctx.beginPath(); ctx.arc(hx, hy, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(hx, hy, 10, 0, Math.PI * 2); ctx.stroke();
     }
     // Player arrow: big, bright cyan, with a bold ring.
     const px = toX(state.player.pos.x);

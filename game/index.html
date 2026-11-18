@@ -21,6 +21,7 @@
   #healthbar { width: 130px; height: 9px; background: rgba(255,255,255,0.15); border-radius: 5px; overflow: hidden; }
   #healthfill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff3b6b, #ff7a3d); }
   #rep { font-size: 13px; color: #9fd8ff; }
+  #jobcount { font-size: 14px; font-weight: 800; color: #ffd23e; letter-spacing: 1px; text-shadow: 0 0 10px rgba(255, 210, 62, 0.5); }
 
   #minimap-wrap { position: absolute; top: 14px; right: 14px; text-align: right; }
   #minimap { width: 190px; height: 190px; border-radius: 10px; border: 1px solid rgba(0, 229, 255, 0.4); background: rgba(4, 8, 20, 0.8); }
@@ -29,6 +30,7 @@
   #objective { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); max-width: 640px; text-align: center; }
   #objective .title { font-size: 15px; font-weight: 700; color: #ffe9a8; text-shadow: 0 0 10px rgba(255, 210, 62, 0.5); }
   #objective .text { font-size: 14px; color: #d9f2ff; margin-top: 2px; }
+  #obj-timer { font-size: 22px; font-weight: 800; color: #ff7a3d; text-shadow: 0 0 12px rgba(255, 122, 61, 0.7); margin-top: 4px; }
   #prompt { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); font-size: 16px; font-weight: 700; color: #ffffff; background: rgba(0, 180, 255, 0.25); border: 1px solid rgba(0, 229, 255, 0.6); border-radius: 8px; padding: 6px 14px; }
   #speedo { position: absolute; right: 16px; bottom: 16px; font-size: 30px; font-weight: 800; color: #00e5ff; text-shadow: 0 0 14px rgba(0, 229, 255, 0.7); }
   #speedo small { font-size: 13px; color: #bfe9ff; }
@@ -51,6 +53,7 @@
   .menu .fine { margin-top: 16px; font-size: 11px; color: #5f7d9c; }
   #busted-title { color: #ff3b6b; text-shadow: 0 0 18px rgba(255, 59, 107, 0.9); }
   #end-title { color: #7dff9b; text-shadow: 0 0 18px rgba(125, 255, 155, 0.9); }
+  #end-stats { color: #ffd23e; font-size: 15px; font-weight: 700; letter-spacing: 1px; margin: 10px 0 4px; }
 </style>
 <script type="importmap">
 { "imports": { "three": "./vendor/three/three.module.min.js" } }
@@ -65,12 +68,13 @@
     <div class="row"><span>WANTED</span><span id="stars"></span></div>
     <div class="row"><span>HP</span><div id="healthbar"><div id="healthfill"></div></div></div>
     <div class="row" id="rep">REP: Street</div>
+    <div class="row" id="jobcount">JOB 1/8</div>
   </div>
   <div id="minimap-wrap">
     <canvas id="minimap" width="380" height="380"></canvas>
     <div id="clock" class="panel">NEON HARBOR &middot; 21:40</div>
   </div>
-  <div id="objective"><div class="title" id="obj-title"></div><div class="text" id="obj-text"></div></div>
+  <div id="objective"><div class="title" id="obj-title"></div><div class="text" id="obj-text"></div><div id="obj-timer" class="hidden"></div></div>
   <div id="prompt" class="hidden"></div>
   <div id="speedo" class="hidden"><span id="speed">0</span> <small>km/h</small></div>
   <div id="controls" class="panel">WASD move &middot; SHIFT run &middot; E enter / steal car &middot; F punch<br>SPACE brake &middot; R reset car &middot; M mute &middot; P pause &middot; drag mouse to look</div>
@@ -81,10 +85,11 @@
 <div id="menu-title" class="menu">
   <div class="card">
     <h1>NEON <span class="pink">HARBOR</span></h1>
-    <h2>An open-world crime story</h2>
+    <h2>An open-world crime story — 8 jobs to freedom</h2>
     <p class="story">Kai owes the Harbor Syndicate $2,000, and the docks never forget a debt.
-    Run jobs across a neon-lit harbor city — on foot and behind the wheel — steal what you need,
-    dodge the harbor police as your wanted level climbs, and buy your freedom one delivery at a time.</p>
+    Run eight jobs across a neon-lit harbor city — on foot and behind the wheel — steal the gold
+    show car, outrun the harbor police and their helicopter, beat the midnight clock, and buy
+    your freedom one delivery at a time.</p>
     <div class="controls">
       <b>WASD</b> move / drive &nbsp; <b>SHIFT</b> run &nbsp; <b>E</b> enter or steal a car &nbsp; <b>F</b> punch<br>
       <b>SPACE</b> brake &nbsp; <b>R</b> flip car back &nbsp; <b>M</b> mute &nbsp; <b>P</b> pause
@@ -110,6 +115,7 @@
     <h2>Neon Harbor is yours now</h2>
     <p class="story">Every job done, every dollar settled. The syndicate shakes your hand and walks away.
     The city is open — keep driving, keep earning, keep the neon burning.</p>
+    <div id="end-stats">8/8 JOBS COMPLETE</div>
     <button class="btn" id="btn-freeroam">FREE ROAM</button>
   </div>
 </div>

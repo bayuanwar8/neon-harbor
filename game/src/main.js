@@ -1,5 +1,8 @@
 // NEON HARBOR — bootstrap, renderer, game loop and state machine.
 // Title -> playing -> (busted | paused | end) -> free roam. All original code.
+// v2: eight story missions (marked-car steal, escape, timed delivery), the
+// police helicopter at wanted 3+, and a real WIN screen when the last debt
+// is paid.
 import * as THREE from 'three';
 import { CFG } from './config.js';
 import { makeRng, hashSeed } from './random.js';
@@ -65,7 +68,7 @@ const player = new Player(scene);
 const cars = new CarManager(scene, rng, city.colliders);
 const pedestrians = new Pedestrians(scene, rng);
 const police = new Police(scene, rng, city.colliders);
-const missions = new Missions(scene);
+const missions = new Missions(scene, cars);
 const combat = new Combat();
 const sound = new SoundBank();
 const input = new Input();
@@ -182,6 +185,7 @@ function doBusted(reason) {
 
 function doStoryComplete() {
   state.mode = 'end';
+  ui.setEndStats(`8/8 JOBS COMPLETE  ·  $${Math.floor(state.lifetimeEarned).toLocaleString('en-US')} earned  ·  DEBT $0 — the Syndicate is paid in full.`);
   ui.showMenu('end');
   ui.showHUD(false);
   sound.missionDone();
@@ -230,13 +234,36 @@ window.addEventListener('resize', () => {
 // ---------- Interaction (E key) ----------
 function interact() {
   const pos = actorPos();
-  // 1. Mission objective first.
-  if (missions.distToTarget(pos) < 5) {
+  // 1. Mission objective first — except escape jobs, which complete by
+  // losing the cops, not by pressing E at the beacon.
+  const cur = missions.current();
+  if (cur && cur.kind !== 'escape' && missions.distToTarget(pos) < 5) {
+    // The marked job only counts when the player is in the gold car.
+    const gate = missions.canAdvance(cars.playerCar);
+    if (!gate.ok) {
+      ui.toast(gate.message, 2600);
+      return;
+    }
+    // JOB 4 stage 0: stealing the gold car IS the objective — take it as
+    // part of the same E press, so the player drives away with it.
+    if (cur.kind === 'marked' && missions.stage === 0) {
+      const mc = missions.markedCar;
+      if (mc && cars.parked.includes(mc)) {
+        cars.takeCar(mc);
+        player.visible = false;
+        player.setPosition(mc.pos.x, mc.pos.z, mc.heading);
+      }
+    }
     const res = missions.advance();
     if (res) {
       if (res.reward > 0) earnCash(res.reward);
       ui.toast(res.message, 3200);
       sound.missionDone();
+      // Jobs that trip the alarm when the package is grabbed.
+      if (res.wantedOnPickup) {
+        police.wanted = res.wantedOnPickup;
+        ui.toast('The alarm is tripped — the police are coming!', 3200);
+      }
       const m = missions.current();
       if (m && m.wantedOnStart) {
         police.wanted = m.wantedOnStart;
@@ -413,9 +440,31 @@ function tick() {
     pedestrians.update(dt, city.colliders);
     // NB: read cars.playerCar live here — interact() (E) may have just
     // stolen / dropped the car, so the frame-top `inCar` can be stale.
-    const pres = police.update(dt, actorPos(), cars.playerCar ? Math.abs(cars.playerCar.speed) : 0, !cars.playerCar);
+    const actorHeading = cars.playerCar ? cars.playerCar.heading : player.heading;
+    const pres = police.update(dt, actorPos(), cars.playerCar ? Math.abs(cars.playerCar.speed) : 0, !cars.playerCar, actorHeading);
     sound.siren(police.wanted > 0);
-    missions.update(dt, time);
+    const timerRes = missions.update(dt, time);
+    if (timerRes === 'timeout') {
+      // Timed delivery ran out: the clock resets and the player tries again.
+      const tm = missions.current();
+      if (tm && tm.timeLimit) {
+        missions.timeLeft = tm.timeLimit;
+        missions.timerRunning = true;
+        ui.toast('Out of time — the clock resets. Try again!', 3200);
+      }
+    }
+    // Escape jobs complete the moment the wanted level drops to zero.
+    const esc = missions.checkEscape(police.wanted);
+    if (esc) {
+      if (esc.reward > 0) earnCash(esc.reward);
+      ui.toast(esc.message, 3200);
+      sound.missionDone();
+      if (esc.storyDone && !state.endShown) {
+        state.endShown = true;
+        setTimeout(doStoryComplete, 900);
+      }
+      saveGame(state);
+    }
 
     // --- Health regen / wrecked ---
     if (state.health < 100) {
@@ -427,8 +476,15 @@ function tick() {
 
     // --- Interaction prompt ---
     const pos = actorPos();
-    if (missions.distToTarget(pos) < 5) {
-      ui.setPrompt('E — ' + (missions.hasPackage || missions.stage === 1 ? 'DELIVER PACKAGE' : (missions.current() && missions.current().id === 'pickup' ? 'PICK UP PACKAGE' : 'START JOB')));
+    const pm = missions.current();
+    if (pm && pm.kind !== 'escape' && missions.distToTarget(pos) < 5) {
+      if (pm.kind === 'marked' && missions.stage === 0) {
+        ui.setPrompt('E — STEAL THE GOLD CAR');
+      } else if (pm.kind === 'marked' && missions.stage === 1) {
+        ui.setPrompt('E — DELIVER GOLD CAR');
+      } else {
+        ui.setPrompt('E — ' + (missions.hasPackage || missions.stage === 1 ? 'DELIVER PACKAGE' : (pm.id === 'pickup' ? 'PICK UP PACKAGE' : 'START JOB')));
+      }
     } else if (!inCar && cars.nearestParked(player.pos, 4)) {
       ui.setPrompt('E — STEAL CAR');
     } else if (inCar) {

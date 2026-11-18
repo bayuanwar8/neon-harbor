@@ -27,12 +27,12 @@ export const CFG = {
   CAR_LENGTH: 4.4,
   CAR_WIDTH: 2.0,
 
-  // Traffic
-  TRAFFIC_COUNT: 22,
+  // Traffic — raised for v2 so the streets read as a living city, not empty.
+  TRAFFIC_COUNT: 30,
   TRAFFIC_SPEED: 9,
 
-  // Pedestrians
-  PED_COUNT: 26,
+  // Pedestrians — raised for v2: more crowd on the sidewalks.
+  PED_COUNT: 40,
   PED_SPEED: 1.6,
 
   // Wanted / police
@@ -43,15 +43,34 @@ export const CFG = {
   BUST_TIME: 1.6,           // seconds a police car must touch you to bust you
   BUST_FINE: 200,
 
+  // Police helicopter — the standout feature. Spawns at wanted 3+, hovers
+  // above the player, follows them and shines a spotlight cone down.
+  HELI_MIN_WANTED: 3,
+  HELI_HEIGHT: 9,           // hover height above the ground — LOW, so it
+                            // sits clearly inside the chase camera's view
+                            // (the camera looks down; a high heli leaves the
+                            // top of the frame).
+  HELI_AHEAD: 45,           // how far ahead of the player it hovers — far,
+                            // because it chases a moving player and lags
+                            // behind its hover point; 45 ahead keeps it in
+                            // the frame even when lagging
+  HELI_FOLLOW: 3.0,         // lerp rate toward its hover point (fast, so it
+                            // keeps up with a fleeing player)
+  HELI_FOLLOW: 1.6,         // lerp rate toward its hover point
+
   // Combat
   PUNCH_RANGE: 2.4,
   PUNCH_COOLDOWN: 0.45,
   PUNCH_DAMAGE: 25,
 
-  // Missions
+  // Missions — eight story jobs, then repeatable courier runs. Rewards are
+  // tuned so the $2,000 debt still shows a balance until the finale: the
+  // seven jobs before the last pay $1,900 together, and JOB 8 pays $2,000,
+  // the single score that clears the debt for good.
   MISSIONS: [
     {
       id: 'meet',
+      kind: 'reach',
       title: 'JOB 1 — MEET ROOK',
       text: 'Rook is waiting at Pier 9. Get to the yellow beacon — on foot or in a car.',
       target: { x: -96, z: 96 },
@@ -59,22 +78,75 @@ export const CFG = {
     },
     {
       id: 'pickup',
+      kind: 'reach',
       title: 'JOB 2 — HARBOR PICKUP',
       text: 'Pick up the package at Dock 7, then deliver it to the Tide Warehouse.',
       target: { x: 96, z: 96 },
       target2: { x: -96, z: -96 },
-      reward: 500,
+      reward: 300,
     },
     {
       id: 'getaway',
+      kind: 'reach',
       title: 'JOB 3 — GETAWAY',
       text: 'The pickup was a setup — the police are on you. Lose them and reach the Safehouse.',
       target: { x: 96, z: -96 },
-      reward: 800,
+      reward: 400,
       wantedOnStart: 2,
+    },
+    {
+      id: 'hotwheels',
+      kind: 'marked',
+      title: 'JOB 4 — HOT WHEELS',
+      text: 'A gold show car is parked by the harbor. Steal it and deliver it to the Chop Shop.',
+      target: { x: -50, z: 82 },   // the marked gold car
+      target2: { x: 96, z: 0 },    // the Chop Shop
+      reward: 400,
+    },
+    {
+      id: 'smokescreen',
+      kind: 'escape',
+      title: 'JOB 5 — SMOKE SCREEN',
+      text: 'Two stars and the whole harbor is looking for you. Lay low until your wanted level drops to zero.',
+      target: { x: 96, z: -96 },   // the Safehouse — lay low there
+      reward: 300,
+      wantedOnStart: 2,
+    },
+    {
+      id: 'vault',
+      kind: 'reach',
+      title: 'JOB 6 — THE VAULT',
+      text: 'Break into the Vault on the west edge, grab the package, then run it to the Safehouse — the cops will be on you.',
+      target: { x: -96, z: 0 },
+      target2: { x: 96, z: -96 },
+      reward: 300,
+      wantedOnPickup: 3,
+    },
+    {
+      id: 'midnight',
+      kind: 'timed',
+      title: 'JOB 7 — MIDNIGHT RUN',
+      text: 'A timed delivery: pick up at the harbor, then reach the north gate before the clock runs out.',
+      target: { x: 0, z: 96 },
+      target2: { x: 0, z: -96 },
+      reward: 200,
+      timeLimit: 75,                // seconds for the delivery leg
+    },
+    {
+      id: 'lastdebt',
+      kind: 'reach',
+      title: 'JOB 8 — THE LAST DEBT',
+      text: 'The final score: pick up the Syndicate shipment at the Casino, deliver it to the old warehouse, and the $2,000 debt is gone.',
+      target: { x: 50, z: 50 },     // the Casino
+      target2: { x: -96, z: -96 },  // the Syndicate drop
+      reward: 2000,
     },
   ],
   COURIER_REWARD: 300,
+
+  // The marked gold car for JOB 4 (Hot Wheels) and the Chop Shop.
+  MARKED_CAR_SPOT: { x: -50, z: 82 },
+  MARKED_CAR_COLOR: 0xffd23e,      // gold — unmistakable on the street
 
   // Economy
   START_CASH: 50,

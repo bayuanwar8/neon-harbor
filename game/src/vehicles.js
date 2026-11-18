@@ -1,5 +1,7 @@
 // NEON HARBOR — vehicles. Player car (arcade physics), traffic that drives the
 // street grid, parked cars you can steal, and the car mesh builder.
+// v2: a gold "marked" car for JOB 4 (Hot Wheels) — spawnMarkedCar() puts the
+// unmistakable gold show car at its fixed spot by the harbor.
 import * as THREE from 'three';
 import { CFG } from './config.js';
 import { resolveColliders, clampToCity } from './city.js';
@@ -152,6 +154,7 @@ function makeCarRecord(mesh, pos, heading) {
     isPolice: false,
     isPlayer: false,
     parked: false,
+    marked: false, // the gold show car for JOB 4 (Hot Wheels)
     wasPlayer: false, // was dropped by the player — re-entering it is free
     // traffic AI
     target: null,
@@ -256,6 +259,27 @@ export class CarManager {
     else car.target = { x: x + dir.x * 50 + off.x, z: z + dir.z * 50 + off.z };
     car.mesh.position.copy(car.pos);
     car.mesh.rotation.y = car.heading - Math.PI / 2;
+  }
+
+  // Spawn the gold marked car for JOB 4 (Hot Wheels) at its fixed spot by
+  // the harbor. If it already exists (parked or player-driven), reuse it.
+  // The gold paint + bright underglow make it unmistakable on the street.
+  spawnMarkedCar() {
+    const existing = [...this.parked, ...(this.playerCar ? [this.playerCar] : [])].find((c) => c.marked);
+    if (existing) return existing;
+    const spot = CFG.MARKED_CAR_SPOT;
+    const mesh = makeCarMesh(CFG.MARKED_CAR_COLOR, { glow: 0xffd23e });
+    this.scene.add(mesh);
+    const rec = makeCarRecord(mesh, new THREE.Vector3(spot.x, 0, spot.z), 0);
+    rec.parked = true;
+    rec.color = CFG.MARKED_CAR_COLOR;
+    rec.marked = true;
+    rec.mesh.userData.glow.material.color.setHex(0xffd23e);
+    rec.mesh.userData.glow.material.opacity = 0.55;
+    rec.mesh.position.copy(rec.pos);
+    rec.mesh.rotation.y = rec.heading - Math.PI / 2;
+    this.parked.push(rec);
+    return rec;
   }
 
   // Pick the next leg at an intersection (ix,iz): straight, left or right

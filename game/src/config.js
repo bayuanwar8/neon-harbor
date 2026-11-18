@@ -54,8 +54,6 @@ export const CFG = {
                             // because it chases a moving player and lags
                             // behind its hover point; 45 ahead keeps it in
                             // the frame even when lagging
-  HELI_FOLLOW: 3.0,         // lerp rate toward its hover point (fast, so it
-                            // keeps up with a fleeing player)
   HELI_FOLLOW: 1.6,         // lerp rate toward its hover point
 
   // Combat
